@@ -1,0 +1,6 @@
+[package]
+name = "gemm-db"
+version = "0.1.0"
+authors = ["Tom Fogal <tfogal@sci.utah.edu>"]
+
+[dependencies]
