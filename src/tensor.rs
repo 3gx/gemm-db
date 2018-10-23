@@ -1,5 +1,6 @@
 use typ;
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct Descriptor {
 	pub dims: Vec<usize>,
 	pub strides: Vec<usize>,
@@ -25,6 +26,7 @@ impl Descriptor {
 	}
 
 	// Returns the natural alignment for the given tensor.
+	/// @todo: should this be a function of typ::Native instead of here?
 	pub fn natural_alignment(&self) -> usize {
 		assert_ne!(self.ty, typ::Native::Void);
 		return self.ty.size();
