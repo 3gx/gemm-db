@@ -2,11 +2,11 @@
 // module with the same name.
 
 // A Native type is a type that is builtin to the language.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Native {
 	U8, U16, U32, U64,
 	I8, I16, I32, I64,
-	F32, F64,
+	F16, F32, F64,
 	Boolean,
 	Character,
 	Void,
@@ -33,7 +33,8 @@ impl Native {
 			&Native::I32 if other == Native::I8 || other == Native::I16 => true,
 			&Native::I64 if other == Native::I8 || other == Native::I16 ||
 			                other == Native::I32 => true,
-			&Native::F64 if other == Native::F32 => true,
+			&Native::F32 if other == Native::F16 => true,
+			&Native::F64 if other == Native::F32 || other == Native::F16 => true,
 			_ => false,
 		}
 	}
@@ -45,6 +46,7 @@ impl Native {
 			Native::I16 | Native::U16 => 2,
 			Native::I32 | Native::U32 => 4,
 			Native::I64 | Native::U64 => 8,
+			Native::F16 => 2,
 			Native::F32 => 4,
 			Native::F64 => 8,
 			Native::Boolean | Native::Character => 1,
@@ -76,6 +78,7 @@ impl RTTI for Native {
 			Native::U32 => "u32".to_string(), Native::U64 => "u64".to_string(),
 			Native::I8 => "u8".to_string(), Native::I16 => "u16".to_string(),
 			Native::I32 => "u32".to_string(), Native::I64 => "u64".to_string(),
+			Native::F16 => "f16".to_string(),
 			Native::F32 => "f32".to_string(), Native::F64 => "f64".to_string(),
 			Native::Boolean => "bool".to_string(),
 			Native::Character => "char".to_string(),
@@ -96,6 +99,7 @@ impl Name for Native {
 			&Native::U16 => "uint16_t", &Native::I16 => "int16_t",
 			&Native::U32 => "uint32_t", &Native::I32 => "int32_t",
 			&Native::U64 => "uint64_t", &Native::I64 => "int64_t",
+			&Native::F16 => "half",
 			&Native::F32 => "float", &Native::F64 => "double",
 			&Native::Boolean => "bool",
 			&Native::Character => "char",
