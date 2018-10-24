@@ -21,7 +21,7 @@ impl Tactic {
 		       output: [tensor::Descriptor::new()]}
 	}
 
-	pub fn evaluate(&self, scratch: cuda::CUdeviceptr) -> f32 {
+	pub fn evaluate(&self, _scratch: cuda::CUdeviceptr) -> f32 {
 		return 0.0;
 	}
 }
@@ -83,9 +83,9 @@ mod test {
 		assert_eq!(a.dims[0], b.dims[1]);
 		assert_eq!(a.dims[1], c.dims[1]);
 		assert_eq!(b.dims[0], c.dims[0]);
-		tact.m = a.dims[1];
-		tact.n = b.dims[0];
-		tact.k = b.dims[1];
+		tact.m = a.dims[0];
+		tact.n = b.dims[1];
+		tact.k = a.dims[1];
 		tact.lda = a.strides[1];
 		tact.ldb = b.strides[1];
 		tact.ldc = c.strides[1];
@@ -118,19 +118,16 @@ mod test {
 			}
 		}
 		let mut tac = Tactic::new();
-		tac.m = inputs[0].dims[1];
-		tac.n = inputs[1].dims[0];
-		tac.k = inputs[1].dims[1];
+		tac.m = inputs[0].dims[0];
+		tac.n = inputs[1].dims[1];
+		tac.k = inputs[0].dims[1];
+		assert_eq!(inputs[0].dims[0], outputs[0].dims[0]); // M
+		assert_eq!(inputs[1].dims[1], outputs[0].dims[1]); // N
+		assert_eq!(inputs[0].dims[1], inputs[1].dims[0]); // K
 		tac.lda = inputs[0].strides[1];
 		tac.ldb = inputs[1].strides[1];
 		tac.ldc = outputs[0].strides[1];
-		assert_eq!(inputs[0].strides[1], inputs[0].dims[0]); // because packed.
-		assert_eq!(inputs[1].strides[1], inputs[1].dims[0]); // because packed.
-		assert_eq!(outputs[0].strides[1], outputs[0].dims[0]); // because packed.
 		tac.compute_type = inputs[0].ty;
-		let needed = inputs[0].dims[0]*inputs[0].dims[1]*inputs[0].ty.size() +
-		             inputs[1].dims[0]*inputs[1].dims[1]*inputs[1].ty.size() +
-		             outputs[0].dims[0]*outputs[0].dims[1]*outputs[0].ty.size();
 		tac.inputs = [inputs[0].clone(),inputs[1].clone()];
 		tac.output = [outputs[0].clone()];
 		tac
@@ -140,11 +137,25 @@ mod test {
 	fn scratch_needed_unaligned_packed_f16() {
 		let a = packed_tensor(&vec![16,24], &typ::Native::F16);
 		let b = packed_tensor(&vec![24,48], &typ::Native::F16);
-		let c = packed_tensor(&vec![24,24], &typ::Native::F16);
+		let c = packed_tensor(&vec![16,48], &typ::Native::F16);
 		let tact: Tactic = tactic(&vec![a.clone(),b.clone()], &vec![c.clone()]);
 		let needed = a.dims[0]*a.dims[1]*a.ty.size() +
 		             b.dims[0]*b.dims[1]*b.ty.size() +
 		             c.dims[0]*c.dims[1]*c.ty.size();
+		assert_eq!(needed, scratch_needed(&tact));
+	}
+
+	#[test]
+	fn scratch_needed_unpacked_i32() {
+		let mut a = packed_tensor(&vec![21,37], &typ::Native::I32);
+		let mut b = packed_tensor(&vec![37,94], &typ::Native::I32);
+		let mut c = packed_tensor(&vec![21,94], &typ::Native::I32);
+		// ... now unpack it.
+		a.strides = vec![1, 32];
+		b.strides = vec![1, 48];
+		c.strides = vec![1, 32];
+		let tact: Tactic = tactic(&vec![a.clone(),b.clone()], &vec![c.clone()]);
+		let needed = a.size_bytes() + b.size_bytes() + c.size_bytes();
 		assert_eq!(needed, scratch_needed(&tact));
 	}
 }
