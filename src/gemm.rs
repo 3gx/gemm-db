@@ -158,4 +158,24 @@ mod test {
 		let needed = a.size_bytes() + b.size_bytes() + c.size_bytes();
 		assert_eq!(needed, scratch_needed(&tact));
 	}
+
+	#[test]
+	fn scratch_needed_unaligned_unpacked_f16() {
+		let mut a = packed_tensor(&vec![129,145], &typ::Native::F16);
+		let mut b = packed_tensor(&vec![145,47], &typ::Native::F16);
+		let mut c = packed_tensor(&vec![129,47], &typ::Native::F16);
+		a.strides = vec![1, 132];
+		b.strides = vec![1, 150];
+		c.strides = vec![1, 140];
+		a.alignment = 16;
+		b.alignment = 16;
+		c.alignment = 16;
+		let mut needed = a.size_bytes();
+		needed = next_align(needed, b.alignment);
+		needed += b.size_bytes();
+		needed = next_align(needed, c.alignment);
+		needed += c.size_bytes();
+		let tact = tactic(&vec![a.clone(),b.clone()], &vec![c.clone()]);
+		assert_eq!(needed, scratch_needed(&tact));
+	}
 }
