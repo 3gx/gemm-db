@@ -46,12 +46,12 @@ pub fn next_align(addr: usize, align: usize) -> usize {
 pub fn scratch_needed(tactic: &Tactic) -> usize {
 	let mut sum: usize = 0;
 	for inp in tactic.inputs.iter() {
+		sum = next_align(sum, inp.alignment);
 		sum += inp.size_bytes();
-		sum = next_align(sum, 16);
 	}
 	for outp in tactic.output.iter() {
+		sum = next_align(sum, outp.alignment);
 		sum += outp.size_bytes();
-		sum = next_align(sum, 16);
 	}
 	return sum;
 }
