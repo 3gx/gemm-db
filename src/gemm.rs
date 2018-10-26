@@ -1,6 +1,7 @@
+use cu;
+use cuda_driver_sys::*;
 use tensor;
 use typ;
-use cuda_driver_sys::*;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Tactic {
@@ -22,8 +23,21 @@ impl Tactic {
 	}
 
 	pub fn evaluate(&self, _scratch: cuda::CUdeviceptr) -> f32 {
+		// @todo fixme implement.
 		return 0.0;
 	}
+}
+
+pub fn costs(tactics: &Vec<Tactic>, ctx: &cu::Context) -> Vec<f32> {
+	let mut rv: Vec<f32> = Vec::with_capacity(tactics.len());
+	rv.resize(tactics.len(), 0.0);
+	let scratch_size: usize = largest_scratch_needed(tactics);
+	let scratch: cuda::CUdeviceptr = ctx.alloc(scratch_size).unwrap();
+	for i in 0..tactics.len() {
+		rv[i] = tactics[i].evaluate(scratch);
+	}
+	ctx.dealloc(scratch).unwrap();
+	return rv;
 }
 
 // Computes the max scratch space we would need to run any tactic.  This
@@ -35,7 +49,7 @@ pub fn largest_scratch_needed(tactics: &Vec<Tactic>) -> usize {
 
 // returns the next aligned value beyond 'addr', which might be addr itself if
 // addr is perfectly aligned already.
-pub fn next_align(addr: usize, align: usize) -> usize {
+fn next_align(addr: usize, align: usize) -> usize {
 	assert!(align > 0);
 	let align_signed: isize = align as isize;
 	let addr_signed: isize = addr as isize;
@@ -43,7 +57,7 @@ pub fn next_align(addr: usize, align: usize) -> usize {
 	return rv as usize;
 }
 
-pub fn scratch_needed(tactic: &Tactic) -> usize {
+fn scratch_needed(tactic: &Tactic) -> usize {
 	let mut sum: usize = 0;
 	for inp in tactic.inputs.iter() {
 		sum = next_align(sum, inp.alignment);

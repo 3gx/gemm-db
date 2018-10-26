@@ -5,3 +5,4 @@ authors = ["Tom Fogal <tfogal@sci.utah.edu>"]
 
 [dependencies]
 cuda-driver-sys = { git = "https://github.com/tfogal/cuda-driver-sys" }
+log = "0.4"
