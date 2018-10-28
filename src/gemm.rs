@@ -11,7 +11,7 @@ pub struct Tactic {
 	// A more generic implementation would use vectors for inputs and outputs,
 	// but this is for a GEMM.  It'll have one input and one output, always.
 	inputs: [tensor::Descriptor;2],
-	output: [tensor::Descriptor;1],
+	outputs: [tensor::Descriptor;1],
 }
 
 impl Tactic {
@@ -19,10 +19,35 @@ impl Tactic {
 		Tactic{m: 0, n: 0, k: 0, lda: 0, ldb: 0, ldc: 0, compute_type:
 		       typ::Native::F32,
 		       inputs: [tensor::Descriptor::new(), tensor::Descriptor::new()],
-		       output: [tensor::Descriptor::new()]}
+		       outputs: [tensor::Descriptor::new()]}
 	}
 
-	pub fn evaluate(&self, _scratch: cuda::CUdeviceptr) -> f32 {
+	// Computes the byte offsets we should use to satisfy temporary tensors for
+	// the tensors in this tactic.  The returned vector will have the same number
+	// of elements as the total number of tensors involved in the operation, with
+	// inputs appearing before outputs.
+	fn allocate(&self) -> Vec<usize> {
+		let mut rv: Vec<usize> = Vec::with_capacity(self.inputs.len() +
+		                                            self.outputs.len());
+		let mut offset = 0 as usize;
+		for inp in self.inputs.iter() {
+			offset = next_align(offset, inp.alignment);
+			rv.push(offset);
+			offset += inp.size_bytes();
+		}
+		for outp in self.outputs.iter() {
+			offset = next_align(offset, outp.alignment);
+			rv.push(offset);
+			offset += outp.size_bytes();
+		}
+		return rv;
+	}
+
+	pub fn evaluate(&self, scratch: cuda::CUdeviceptr) -> f32 {
+		let offsets: Vec<usize> = self.allocate();
+		assert_eq!(offsets.len(), 3); // We know it's a GEMM; it has 3 args.
+		let _pointers: Vec<cuda::CUdeviceptr> =
+			offsets.iter().map(|offset| scratch+*offset as u64).collect();
 		// @todo fixme implement.
 		return 0.0;
 	}
@@ -63,7 +88,7 @@ fn scratch_needed(tactic: &Tactic) -> usize {
 		sum = next_align(sum, inp.alignment);
 		sum += inp.size_bytes();
 	}
-	for outp in tactic.output.iter() {
+	for outp in tactic.outputs.iter() {
 		sum = next_align(sum, outp.alignment);
 		sum += outp.size_bytes();
 	}
@@ -111,7 +136,7 @@ mod test {
 		             b.dims[0]*b.dims[1]*b.ty.size() +
 		             c.dims[0]*c.dims[1]*c.ty.size();
 		tact.inputs = [a,b];
-		tact.output = [c];
+		tact.outputs = [c];
 		assert_eq!(needed, scratch_needed(&tact));
 	}
 
@@ -143,7 +168,7 @@ mod test {
 		tac.ldc = outputs[0].strides[1];
 		tac.compute_type = inputs[0].ty;
 		tac.inputs = [inputs[0].clone(),inputs[1].clone()];
-		tac.output = [outputs[0].clone()];
+		tac.outputs = [outputs[0].clone()];
 		tac
 	}
 
@@ -191,5 +216,24 @@ mod test {
 		needed += c.size_bytes();
 		let tact = tactic(&vec![a.clone(),b.clone()], &vec![c.clone()]);
 		assert_eq!(needed, scratch_needed(&tact));
+	}
+
+	#[test]
+	fn allocate_offsets() {
+		let mut a = packed_tensor(&vec![129,145], &typ::Native::F16);
+		let mut b = packed_tensor(&vec![145,47], &typ::Native::F16);
+		let mut c = packed_tensor(&vec![129,47], &typ::Native::F16);
+		a.strides = vec![1, 132];
+		b.strides = vec![1, 150];
+		c.strides = vec![1, 140];
+		a.alignment = 16;
+		b.alignment = 16;
+		c.alignment = 16;
+		let tact = tactic(&vec![a.clone(),b.clone()], &vec![c.clone()]);
+		let offsets = tact.allocate();
+		assert_eq!(offsets.len(), 3);
+		assert_eq!(offsets[0], 0);
+		assert_eq!(offsets[1], 38288);
+		assert_eq!(offsets[2], 52400);
 	}
 }
