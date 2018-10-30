@@ -57,11 +57,11 @@ pub fn costs(tactics: &Vec<Tactic>, ctx: &cu::Context) -> Vec<f32> {
 	let mut rv: Vec<f32> = Vec::with_capacity(tactics.len());
 	rv.resize(tactics.len(), 0.0);
 	let scratch_size: usize = largest_scratch_needed(tactics);
-	let scratch: cuda::CUdeviceptr = ctx.alloc(scratch_size).unwrap();
+	let scratch: cuda::CUdeviceptr = ctx.allocate(scratch_size).unwrap();
 	for i in 0..tactics.len() {
 		rv[i] = tactics[i].evaluate(scratch);
 	}
-	ctx.dealloc(scratch).unwrap();
+	ctx.deallocate(scratch).unwrap();
 	return rv;
 }
 

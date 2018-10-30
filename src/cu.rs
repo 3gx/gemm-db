@@ -36,7 +36,7 @@ impl Context {
 	}
 
 	// allocates device memory of the given size.
-	pub fn alloc(&self, sz: usize) -> Option<CUdeviceptr> {
+	pub fn allocate(&self, sz: usize) -> Option<CUdeviceptr> {
 		let mut rv: CUdeviceptr = 0 as CUdeviceptr;
 		let res: CUresult = unsafe {
 			cuMemAlloc_v2(&mut rv, sz)
@@ -48,7 +48,7 @@ impl Context {
 		return Some(rv);
 	}
 	// deallocates a chunk of memory previously obtained via 'alloc'.
-	pub fn dealloc(&self, ptr: CUdeviceptr) -> Option<()> {
+	pub fn deallocate(&self, ptr: CUdeviceptr) -> Option<()> {
 		let res: CUresult = unsafe {
 			cuMemFree_v2(ptr)
 		};
